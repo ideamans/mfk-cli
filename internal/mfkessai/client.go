@@ -1,0 +1,190 @@
+package mfkessai
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+)
+
+const (
+	baseURL = "https://api.mfkessai.co.jp"
+)
+
+// Client is a client for MoneyForward Kessai API
+type Client struct {
+	apiKey     string
+	httpClient *http.Client
+}
+
+// NewClient creates a new MF Kessai API client
+func NewClient(apiKey string) *Client {
+	return &Client{
+		apiKey: apiKey,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
+// Billing represents a billing record
+type Billing struct {
+	Object     string   `json:"object"`
+	ID         string   `json:"id"`
+	CustomerID string   `json:"customer_id"`
+	Amount     int      `json:"amount"`
+	IssueDate  string   `json:"issue_date"`
+	DueDate    string   `json:"due_date"`
+	Status     string   `json:"status"`
+	InvoiceIDs []string `json:"invoice_ids"`
+}
+
+// BillingsResponse represents the response from /v2/billings
+type BillingsResponse struct {
+	Object     string `json:"object"`
+	Pagination struct {
+		Total       int    `json:"total"`
+		Limit       int    `json:"limit"`
+		HasNext     bool   `json:"has_next"`
+		HasPrevious bool   `json:"has_previous"`
+		Start       string `json:"start"`
+		End         string `json:"end"`
+	} `json:"pagination"`
+	Items []Billing `json:"items"`
+}
+
+// DownloadSignedURLRequest represents the request to get download signed URL
+type DownloadSignedURLRequest struct {
+	Type string `json:"type"`
+}
+
+// DownloadSignedURLResponse represents the response from download_signed_url endpoint
+type DownloadSignedURLResponse struct {
+	Object string `json:"object"`
+	Items  []struct {
+		SignedURL string    `json:"signed_url"`
+		ExpiredAt time.Time `json:"expired_at"`
+		Type      string    `json:"type"`
+	} `json:"items"`
+}
+
+// GetBillings retrieves billings within the specified date range
+func (c *Client) GetBillings(issueDateFrom, issueDateTo string) ([]Billing, error) {
+	var allBillings []Billing
+	var startingAfter string
+
+	for {
+		url := fmt.Sprintf("%s/v2/billings?issue_date_from=%s&issue_date_to=%s&limit=100",
+			baseURL, issueDateFrom, issueDateTo)
+
+		if startingAfter != "" {
+			url += fmt.Sprintf("&starting_after=%s", startingAfter)
+		}
+
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		req.Header.Set("apikey", c.apiKey)
+		req.Header.Set("Accept", "application/json")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to send request: %w", err)
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+		}
+
+		var billingsResp BillingsResponse
+		if err := json.NewDecoder(resp.Body).Decode(&billingsResp); err != nil {
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+
+		allBillings = append(allBillings, billingsResp.Items...)
+
+		// Check if there are more pages
+		if !billingsResp.Pagination.HasNext {
+			break
+		}
+		startingAfter = billingsResp.Pagination.End
+	}
+
+	return allBillings, nil
+}
+
+// GetDownloadSignedURL gets a signed URL for downloading the invoice PDF
+// The endpoint format is: /v2/billings/{billing_id}/issues/i/{invoice_id}/download_signed_url
+// where 'i' is a literal path segment indicating invoice type
+func (c *Client) GetDownloadSignedURL(billingID, invoiceID string) (string, error) {
+	url := fmt.Sprintf("%s/v2/billings/%s/issues/i/%s/download_signed_url", baseURL, billingID, invoiceID)
+
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("apikey", c.apiKey)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+	}
+
+	var signedURLResp DownloadSignedURLResponse
+	if err := json.NewDecoder(resp.Body).Decode(&signedURLResp); err != nil {
+		return "", fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Return the first PDF URL from items
+	if len(signedURLResp.Items) > 0 {
+		for _, item := range signedURLResp.Items {
+			if item.Type == "pdf" {
+				return item.SignedURL, nil
+			}
+		}
+		// If no PDF type found, return the first item
+		if signedURLResp.Items[0].SignedURL != "" {
+			return signedURLResp.Items[0].SignedURL, nil
+		}
+	}
+
+	return "", fmt.Errorf("no download URL found in response")
+}
+
+// DownloadFile downloads a file from the given URL
+func (c *Client) DownloadFile(url string) ([]byte, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download file: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download failed with status %d", resp.StatusCode)
+	}
+
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return data, nil
+}
