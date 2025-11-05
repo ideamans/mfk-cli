@@ -8,36 +8,25 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
-	"github.com/miyanaga/moneyforward-kessai-invoice-downloader-v2/internal/downloader"
 	"github.com/miyanaga/moneyforward-kessai-invoice-downloader-v2/internal/mfkessai"
 	"github.com/spf13/cobra"
 )
 
-var (
-	concurrency int
-)
-
 var downloadInvoiceCmd = &cobra.Command{
-	Use:   "download-invoice [開始日] [終了日] [出力ディレクトリ]",
-	Short: "指定期間の請求書PDFをダウンロード",
-	Long: `指定した期間内の請求書PDFファイルをダウンロードします。
-日付はYYYY-MM-DD形式で指定してください。
+	Use:   "download-invoice [請求書ID] [出力ディレクトリ]",
+	Short: "指定した請求書IDのPDFをダウンロード",
+	Long: `指定した請求書IDのPDFファイルをダウンロードします。
 出力ディレクトリが存在しない場合は自動的に作成されます。
 
 使用例:
-  mfk -c 5 download-invoice 2024-09-01 2025-09-30 ~/Downloads/mfk`,
-	Args: cobra.ExactArgs(3),
+  mfk download-invoice IN_XXXXXXXXXXXXX ~/Downloads/mfk`,
+	Args: cobra.ExactArgs(2),
 	RunE: runDownloadInvoice,
 }
 
-func init() {
-	downloadInvoiceCmd.Flags().IntVarP(&concurrency, "concurrency", "c", 5, "並列ダウンロード数")
-}
-
 func runDownloadInvoice(cmd *cobra.Command, args []string) error {
-	startDate := args[0]
-	endDate := args[1]
-	outputDir := args[2]
+	invoiceID := args[0]
+	outputDir := args[1]
 
 	// Determine API key: command-line flag > environment variable
 	var finalAPIKey string
@@ -72,21 +61,42 @@ func runDownloadInvoice(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Printf("Starting invoice download")
-	log.Printf("Date range: %s to %s", startDate, endDate)
+	log.Printf("Invoice ID: %s", invoiceID)
 	log.Printf("Output directory: %s", outputDir)
-	log.Printf("Concurrency: %d", concurrency)
 
 	// Create API client
 	client := mfkessai.NewClient(finalAPIKey)
 
-	// Create downloader
-	dl := downloader.New(client, concurrency)
-
-	// Download invoices
-	if err := dl.DownloadInvoices(startDate, endDate, outputDir); err != nil {
-		return fmt.Errorf("failed to download invoices: %w", err)
+	// Find billing that contains the invoice ID
+	log.Printf("Searching for billing containing invoice ID: %s", invoiceID)
+	billing, err := client.FindBillingByInvoiceID(invoiceID)
+	if err != nil {
+		return fmt.Errorf("failed to find billing for invoice %s: %w", invoiceID, err)
 	}
 
+	log.Printf("Found billing ID: %s (Issue Date: %s, Amount: %d)", billing.ID, billing.IssueDate, billing.Amount)
+
+	// Get download signed URL
+	log.Printf("Getting download URL...")
+	url, err := client.GetDownloadSignedURL(billing.ID, invoiceID)
+	if err != nil {
+		return fmt.Errorf("failed to get download URL: %w", err)
+	}
+
+	// Download file
+	log.Printf("Downloading file...")
+	data, err := client.DownloadFile(url)
+	if err != nil {
+		return fmt.Errorf("failed to download file: %w", err)
+	}
+
+	// Save file
+	filename := filepath.Join(outputDir, fmt.Sprintf("%s.pdf", invoiceID))
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	log.Printf("SUCCESS: Saved %s (%d bytes)", filename, len(data))
 	log.Println("Download completed successfully")
 	return nil
 }

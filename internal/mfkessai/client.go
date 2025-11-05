@@ -188,3 +188,31 @@ func (c *Client) DownloadFile(url string) ([]byte, error) {
 
 	return data, nil
 }
+
+// FindBillingByInvoiceID searches for a billing that contains the specified invoice ID
+// It searches through recent billings (last 2 years) to find the matching invoice
+func (c *Client) FindBillingByInvoiceID(invoiceID string) (*Billing, error) {
+	// Search in the last 2 years to find the billing
+	// This is a reasonable time range for invoice lookup
+	now := time.Now()
+	twoYearsAgo := now.AddDate(-2, 0, 0)
+
+	startDate := twoYearsAgo.Format("2006-01-02")
+	endDate := now.Format("2006-01-02")
+
+	billings, err := c.GetBillings(startDate, endDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get billings: %w", err)
+	}
+
+	// Search for the invoice ID in all billings
+	for i := range billings {
+		for _, invID := range billings[i].InvoiceIDs {
+			if invID == invoiceID {
+				return &billings[i], nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("invoice ID %s not found in any billing", invoiceID)
+}

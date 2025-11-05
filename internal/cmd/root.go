@@ -21,4 +21,5 @@ func Execute() error {
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&apiKey, "api-key", "k", "", "マネーフォワードケッサイAPIキー（環境変数MFK_API_KEYより優先）")
 	rootCmd.AddCommand(downloadInvoiceCmd)
+	rootCmd.AddCommand(downloadInvoicesCmd)
 }
