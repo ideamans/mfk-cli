@@ -54,6 +54,15 @@ type BillingsResponse struct {
 	Items []Billing `json:"items"`
 }
 
+// BillingSearchParams contains parameters for searching billings
+type BillingSearchParams struct {
+	IssueDateFrom string
+	IssueDateTo   string
+	DueDateFrom   string
+	DueDateTo     string
+	Status        []string
+}
+
 // DownloadSignedURLRequest represents the request to get download signed URL
 type DownloadSignedURLRequest struct {
 	Type string `json:"type"`
@@ -71,16 +80,47 @@ type DownloadSignedURLResponse struct {
 
 // GetBillings retrieves billings within the specified date range
 func (c *Client) GetBillings(issueDateFrom, issueDateTo string) ([]Billing, error) {
+	return c.GetBillingsWithParams(BillingSearchParams{
+		IssueDateFrom: issueDateFrom,
+		IssueDateTo:   issueDateTo,
+	})
+}
+
+// GetBillingsWithParams retrieves billings with custom search parameters
+// Uses the /v2/billings/qualified endpoint for invoice system compliance
+func (c *Client) GetBillingsWithParams(params BillingSearchParams) ([]Billing, error) {
 	var allBillings []Billing
 	var startingAfter string
 
 	for {
-		url := fmt.Sprintf("%s/v2/billings?issue_date_from=%s&issue_date_to=%s&limit=100",
-			baseURL, issueDateFrom, issueDateTo)
+		// Use /v2/billings/qualified endpoint for invoice system (インボイス制度) compliance
+		url := fmt.Sprintf("%s/v2/billings/qualified?limit=100", baseURL)
+
+		// Add date filters
+		if params.IssueDateFrom != "" {
+			url += fmt.Sprintf("&issue_date_from=%s", params.IssueDateFrom)
+		}
+		if params.IssueDateTo != "" {
+			url += fmt.Sprintf("&issue_date_to=%s", params.IssueDateTo)
+		}
+		if params.DueDateFrom != "" {
+			url += fmt.Sprintf("&due_date_from=%s", params.DueDateFrom)
+		}
+		if params.DueDateTo != "" {
+			url += fmt.Sprintf("&due_date_to=%s", params.DueDateTo)
+		}
+
+		// Add status filters
+		for _, status := range params.Status {
+			url += fmt.Sprintf("&status=%s", status)
+		}
 
 		if startingAfter != "" {
 			url += fmt.Sprintf("&starting_after=%s", startingAfter)
 		}
+
+		// Debug: Log the request URL
+		fmt.Printf("DEBUG: Fetching URL: %s\n", url)
 
 		req, err := http.NewRequest("GET", url, nil)
 		if err != nil {
@@ -106,13 +146,25 @@ func (c *Client) GetBillings(issueDateFrom, issueDateTo string) ([]Billing, erro
 			return nil, fmt.Errorf("failed to decode response: %w", err)
 		}
 
+		// Debug: Log pagination info
+		fmt.Printf("DEBUG: Page total=%d, has_next=%v, items_count=%d, end=%s\n",
+			billingsResp.Pagination.Total, billingsResp.Pagination.HasNext, len(billingsResp.Items), billingsResp.Pagination.End)
+
 		allBillings = append(allBillings, billingsResp.Items...)
 
 		// Check if there are more pages
 		if !billingsResp.Pagination.HasNext {
 			break
 		}
-		startingAfter = billingsResp.Pagination.End
+
+		// Use the End cursor for pagination
+		newStartingAfter := billingsResp.Pagination.End
+		if newStartingAfter == startingAfter || newStartingAfter == "" {
+			// Prevent infinite loop if API returns same cursor
+			fmt.Printf("DEBUG: WARNING - Pagination cursor not advancing (current=%s, new=%s). Breaking loop.\n", startingAfter, newStartingAfter)
+			break
+		}
+		startingAfter = newStartingAfter
 	}
 
 	return allBillings, nil
