@@ -154,8 +154,11 @@ func (c *Client) GetAllPages(path string, query url.Values) (json.RawMessage, er
 		}
 
 		var page struct {
-			Items   []json.RawMessage `json:"items"`
-			HasNext bool              `json:"has_next"`
+			Items      []json.RawMessage `json:"items"`
+			Pagination struct {
+				HasNext bool   `json:"has_next"`
+				End     string `json:"end"`
+			} `json:"pagination"`
 		}
 		if err := json.Unmarshal(raw, &page); err != nil {
 			return raw, nil
@@ -163,23 +166,28 @@ func (c *Client) GetAllPages(path string, query url.Values) (json.RawMessage, er
 
 		allItems = append(allItems, page.Items...)
 
-		if !page.HasNext {
+		if !page.Pagination.HasNext {
 			break
 		}
 
-		if len(page.Items) > 0 {
+		// Advance the cursor using the API-provided `pagination.end` (the last
+		// resource ID of this page). Fall back to the last item's `id` if absent.
+		cursor := page.Pagination.End
+		if cursor == "" && len(page.Items) > 0 {
 			var lastItem map[string]interface{}
 			if err := json.Unmarshal(page.Items[len(page.Items)-1], &lastItem); err == nil {
 				if id, ok := lastItem["id"].(string); ok {
-					if query == nil {
-						query = url.Values{}
-					}
-					query.Set("after", id)
+					cursor = id
 				}
 			}
-		} else {
+		}
+		if cursor == "" {
 			break
 		}
+		if query == nil {
+			query = url.Values{}
+		}
+		query.Set("after", cursor)
 	}
 
 	result := map[string]interface{}{

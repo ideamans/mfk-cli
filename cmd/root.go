@@ -17,12 +17,25 @@ var (
 	flagLimit   int
 	flagDryRun  bool
 	flagJSON    string
+	flagLLM     bool
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "mfk",
 	Short: "Money Forward Kessai CLI",
 	Long:  "CLI tool for Money Forward Kessai API v2",
+	// --llm prints a comprehensive guide for LLM agents and exits before any
+	// subcommand runs, so `mfk --llm` (or `mfk <cmd> --llm`) always works.
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if flagLLM {
+			fmt.Fprint(os.Stdout, llmGuide)
+			os.Exit(0)
+		}
+		return nil
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
+	},
 }
 
 func Execute() {
@@ -38,6 +51,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&flagLimit, "limit", 0, "Number of items to fetch")
 	rootCmd.PersistentFlags().BoolVar(&flagDryRun, "dry-run", false, "Show request without executing")
 	rootCmd.PersistentFlags().StringVar(&flagJSON, "json", "", "Request body as JSON string")
+	rootCmd.PersistentFlags().BoolVar(&flagLLM, "llm", false, "Print a comprehensive guide for LLM agents and exit")
 }
 
 func newClient() (*api.Client, error) {

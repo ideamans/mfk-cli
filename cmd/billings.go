@@ -21,12 +21,26 @@ func init() {
 
 var billingsCmd = &cobra.Command{
 	Use:   "billings",
-	Short: "Manage billings",
+	Short: "Manage billings (use `qualified` for invoice-system billings since Oct 2023)",
+	Long: `Manage billings.
+
+Money Forward Kessai splits billing retrieval into two endpoints around the
+Japanese qualified-invoice system (インボイス制度, started Oct 2023):
+
+  mfk billings qualified  -> GET /billings/qualified
+      Qualified invoice system (適格請求書等保存方式). Billings from Oct 2023
+      onward. THIS IS THE MAIN COMMAND for current billings.
+
+  mfk billings list       -> GET /billings
+      Legacy classification-style billings (区分記載請求書等保存方式), roughly
+      before Oct 2023. Use this only to access older billings.
+
+Add --page-all to fetch every page (otherwise only the latest 20 are returned).`,
 }
 
 var billingsListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List billings",
+	Short: "List legacy (pre-Oct-2023) billings — use `qualified` for current invoice-system billings",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := url.Values{}
 		if v, _ := cmd.Flags().GetString("customer-id"); v != "" {
@@ -44,7 +58,7 @@ var billingsListCmd = &cobra.Command{
 
 var billingsQualifiedCmd = &cobra.Command{
 	Use:   "qualified",
-	Short: "List qualified invoice billings",
+	Short: "List invoice-system billings (適格請求書, since Oct 2023) — the main billings command",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		query := url.Values{}
 		if v, _ := cmd.Flags().GetString("customer-id"); v != "" {
