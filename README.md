@@ -51,7 +51,7 @@ mfk <リソース> <メソッド> [フラグ]
 | `--limit <N>` | 取得件数 |
 | `--dry-run` | リクエスト内容を表示するのみ |
 | `--json <JSON>` | リクエストボディを JSON で指定 |
-| `--llm` | LLM エージェント向けの詳細ガイドを表示して終了 |
+| `--llm` | 非推奨。`mfk llm` を使ってください（互換のため動作します） |
 
 ### リソース一覧
 
@@ -134,12 +134,27 @@ mfk billings qualified --customer-id cust_xxx --page-all
 mfk billings list --page-all
 ```
 
-### LLM エージェント向けガイド
+### AIエージェントから使う
 
-`mfk --llm` で、全コマンドと請求書（qualified / list）の使い分けを含む詳細ガイドを Markdown で出力します。LLM エージェントにこの CLI を操作させる際のコンテキストとして利用できます。
+`mfk llm` で、全コマンドと請求書（qualified / list）の使い分けを含む詳細リファレンスを Markdown で出力します。コマンドカタログは cobra の定義から生成されるため実装と乖離せず、バイナリに埋め込まれているのでオフラインでも動作します。
 
 ```bash
-mfk --llm
+mfk llm                  # Markdown
+mfk llm --format json    # 章ごとのJSON配列
+mfk --llm                # 非推奨エイリアス。従来どおりどの位置でも動作
+```
+
+Claude Code ではプラグインを導入すると `/mfk-usage` と `/mfk-install` が使えます。
+
+```
+/plugin marketplace add ideamans/claude-public-plugins
+/plugin install mfk-cli@ideamans-plugins
+```
+
+同じスキルは Copilot や Cursor など Agent Skills 対応ホストでも利用できます。
+
+```bash
+gh skill install ideamans/mfk-cli/plugins/mfk-cli/skills/mfk-usage --agent copilot
 ```
 
 ### CLI フラグと `--json` の併用
