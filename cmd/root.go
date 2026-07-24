@@ -5,9 +5,11 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/ideamans/go-llm-cli-kit/llmcmd"
+	"github.com/spf13/cobra"
+
 	"github.com/ideamans/mfk-cli/pkg/api"
 	"github.com/ideamans/mfk-cli/pkg/output"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -17,26 +19,26 @@ var (
 	flagLimit   int
 	flagDryRun  bool
 	flagJSON    string
-	flagLLM     bool
 )
 
+// PluginVersion はこのCLIのリリースバージョンです。
+// plugins/mfk-cli/.claude-plugin/plugin.json の version と一致していることを
+// テストが、git タグと一致していることをリリースワークフローが検査します。
+const PluginVersion = "0.3.0"
+
 var rootCmd = &cobra.Command{
-	Use:   "mfk",
-	Short: "Money Forward Kessai CLI",
-	Long:  "CLI tool for Money Forward Kessai API v2",
-	// --llm prints a comprehensive guide for LLM agents and exits before any
-	// subcommand runs, so `mfk --llm` (or `mfk <cmd> --llm`) always works.
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-		if flagLLM {
-			fmt.Fprint(os.Stdout, llmGuide)
-			os.Exit(0)
-		}
-		return nil
-	},
+	Use:     "mfk",
+	Short:   "Money Forward Kessai CLI",
+	Long:    "CLI tool for Money Forward Kessai API v2",
+	Version: PluginVersion,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return cmd.Help()
 	},
 }
+
+// Root は組み立て済みのコマンドツリーを実行せずに返します。
+// カタログ生成器が Execute と同じ定義から生成するために使います。
+func Root() *cobra.Command { return rootCmd }
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
@@ -51,7 +53,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&flagLimit, "limit", 0, "Number of items to fetch")
 	rootCmd.PersistentFlags().BoolVar(&flagDryRun, "dry-run", false, "Show request without executing")
 	rootCmd.PersistentFlags().StringVar(&flagJSON, "json", "", "Request body as JSON string")
-	rootCmd.PersistentFlags().BoolVar(&flagLLM, "llm", false, "Print a comprehensive guide for LLM agents and exit")
+	llmcmd.AddTo(rootCmd, LLMConfig())
 }
 
 func newClient() (*api.Client, error) {

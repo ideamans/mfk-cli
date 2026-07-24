@@ -1,0 +1,17 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "mfk — Money Forward Kessai CLI",
+  "description": "A command-line client for the Money Forward Kessai (マネーフォワードケッサイ) API v2: customers, credit examinations and facilities, billings and qualified invoices, transactions, authorizations, payouts, refunds and destinations. JSON output by default with table and CSV alternatives, automatic pagination, dry-run for writes, and separate production and sandbox environments. The full agent reference is embedded in the binary behind `mfk llm`.",
+  "folders": ["internal/llmdocs"],
+  "excludeFolders": ["plugins", ".github"],
+  "rules": [
+    "Invoice retrieval is split by the Japanese invoice system (インボイス制度, from October 2023). `mfk billings qualified` returns current invoice-system billings; `mfk billings list` returns only the older 区分記載請求書 format from before that. If only pre-2023 data comes back, the wrong one was used — current work should use qualified.",
+    "Lists return the 20 most recent records by default, newest first. Without --page-all you are looking at a truncated view, which silently produces wrong totals. --page-all follows pagination.has_next internally and merges every page into {\"items\":[...]}. --limit sets the page size (1-200).",
+    "The environment is decided by --sandbox, then MFK_ENV, then production. Production uses MFK_API_KEY against https://api.mfkessai.co.jp/v2; sandbox prefers MFK_SANDBOX_API_KEY against https://sandbox-api.mfkessai.co.jp/v2. Always confirm which environment a write is going to hit.",
+    "Every command has the shape `mfk <resource> <method> [flags]`. Output defaults to JSON; lists are {\"object\":\"list\",\"items\":[...],\"pagination\":{...}}.",
+    "Request bodies can be passed with --json '<JSON>'. When both --json and dedicated flags are given, the flags win.",
+    "--dry-run prints the request without sending it. Use it before any create, update, reissue or cancel: these affect real customers, real invoices and real money.",
+    "Billing ids obtained from either `billings qualified` or `billings list` both work with `mfk billings get <id>`.",
+    "The complete reference is embedded in the binary: `mfk llm` (Markdown) or `mfk llm --format json`."
+  ]
+}
