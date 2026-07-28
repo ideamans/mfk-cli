@@ -24,7 +24,7 @@ var (
 // PluginVersion はこのCLIのリリースバージョンです。
 // plugins/mfk-cli/.claude-plugin/plugin.json の version と一致していることを
 // テストが、git タグと一致していることをリリースワークフローが検査します。
-const PluginVersion = "0.3.0"
+const PluginVersion = "0.4.0"
 
 var rootCmd = &cobra.Command{
 	Use:     "mfk",
