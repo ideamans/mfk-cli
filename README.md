@@ -4,12 +4,6 @@
 
 ## インストール
 
-### Homebrew (macOS / Linux)
-
-```bash
-brew install ideamans/tap/mfk
-```
-
 ### Go
 
 ```bash
