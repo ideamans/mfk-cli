@@ -69,7 +69,25 @@ Add --page-all to fetch every page (otherwise only the latest 20 are returned).
 
 ### `mfk billings download-signed-url`
 
-Get download signed URL
+Get a signed URL to download one invoice PDF
+
+Get a short-lived signed URL for downloading the PDF of one invoice.
+
+The invoice ID is in the billing's invoice_ids (see "mfk billings get" or
+"mfk billings qualified"). The response looks like
+{"items":[{"signed_url": "...", "expired_at": "...", "type": "pdf"}]}.
+Download the file from signed_url without the API key; the URL expires soon.
+
+```
+mfk billings download-signed-url <billing_id> <invoice_id>
+```
+
+Example:
+
+```
+mfk billings download-signed-url <billing_id> <invoice_id>
+  curl -sSo invoice.pdf "$(mfk billings download-signed-url <billing_id> <invoice_id> | jq -r '.items[0].signed_url')"
+```
 
 ### `mfk billings get`
 

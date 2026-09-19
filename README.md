@@ -128,6 +128,15 @@ mfk billings qualified --customer-id cust_xxx --page-all
 mfk billings list --page-all
 ```
 
+### 請求書PDFの取得
+
+請求書PDFは、請求に紐づく請求書IDごとに署名付きURLを発行して取得します。
+請求書IDは `mfk billings get <billing_id>` の `invoice_ids` にあります。
+
+```bash
+curl -sSo invoice.pdf "$(mfk billings download-signed-url <billing_id> <invoice_id> | jq -r '.items[0].signed_url')"
+```
+
 ### AIエージェントから使う
 
 `mfk llm` で、全コマンドと請求書（qualified / list）の使い分けを含む詳細リファレンスを Markdown で出力します。コマンドカタログは cobra の定義から生成されるため実装と乖離せず、バイナリに埋め込まれているのでオフラインでも動作します。
