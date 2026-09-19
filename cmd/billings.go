@@ -105,14 +105,26 @@ var billingsUploadSignedURLCmd = &cobra.Command{
 	},
 }
 
+// billingDownloadSignedURLPath は請求書PDFのダウンロード用署名URLを発行するパス。
+// 請求（billing）に請求書（invoice）が紐づくので、両方のIDが要る。
+// 以前は /billings/download_signed_url に投げていたが、そのルートは存在せず 405 になる。
+func billingDownloadSignedURLPath(billingID, invoiceID string) string {
+	return fmt.Sprintf("/billings/%s/issues/i/%s/download_signed_url", billingID, invoiceID)
+}
+
 var billingsDownloadSignedURLCmd = &cobra.Command{
-	Use:   "download-signed-url",
-	Short: "Get download signed URL",
+	Use:   "download-signed-url <billing_id> <invoice_id>",
+	Short: "Get a signed URL to download one invoice PDF",
+	Long: `Get a short-lived signed URL for downloading the PDF of one invoice.
+
+The invoice ID is in the billing's invoice_ids (see "mfk billings get" or
+"mfk billings qualified"). The response looks like
+{"items":[{"signed_url": "...", "expired_at": "...", "type": "pdf"}]}.
+Download the file from signed_url without the API key; the URL expires soon.`,
+	Example: `  mfk billings download-signed-url <billing_id> <invoice_id>
+  curl -sSo invoice.pdf "$(mfk billings download-signed-url <billing_id> <invoice_id> | jq -r '.items[0].signed_url')"`,
+	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		body, err := buildBody(nil)
-		if err != nil {
-			return err
-		}
-		return doPost("/billings/download_signed_url", body)
+		return doPost(billingDownloadSignedURLPath(args[0], args[1]), nil)
 	},
 }

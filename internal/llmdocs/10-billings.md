@@ -35,5 +35,21 @@ mfk billings get <billing_id>
 mfk billings get <billing_id>                 # 請求の詳細取得
 mfk billings reissue <billing_id> --json ...   # 請求書の再発行
 mfk billings upload-signed-url --json ...       # アップロード用署名URL取得
-mfk billings download-signed-url --json ...     # ダウンロード用署名URL取得
+mfk billings download-signed-url <billing_id> <invoice_id>  # 請求書PDFのダウンロード用署名URL取得
 ```
+
+### 請求書PDFを取得する
+
+請求書PDFは、請求（billing）に紐づく請求書（invoice）ごとに署名付きURLを発行して取得する。
+請求書IDは請求の `invoice_ids` にある。署名付きURLは短時間で失効し、取得時にAPIキーは付けない。
+
+```bash
+# 請求に紐づく請求書IDを見る
+mfk billings get <billing_id> | jq -r '.invoice_ids[]'
+
+# 署名付きURLを発行してPDFを保存する
+curl -sSo invoice.pdf "$(mfk billings download-signed-url <billing_id> <invoice_id> | jq -r '.items[0].signed_url')"
+```
+
+期間内の請求書をまとめて取るときは、`mfk billings qualified --page-all` の結果から
+請求ごとに上の2行を繰り返す。
