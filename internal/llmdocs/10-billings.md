@@ -34,7 +34,7 @@ mfk billings get <billing_id>
 ```bash
 mfk billings get <billing_id>                 # 請求の詳細取得
 mfk billings reissue <billing_id> --json ...   # 請求書の再発行
-mfk billings upload-signed-url --json ...       # アップロード用署名URL取得
+mfk billings upload-signed-url <billing_id>     # アップロード用署名URL取得（要契約）
 mfk billings download-signed-url <billing_id> <invoice_id>  # 請求書PDFのダウンロード用署名URL取得
 ```
 
@@ -53,3 +53,17 @@ curl -sSo invoice.pdf "$(mfk billings download-signed-url <billing_id> <invoice_
 
 期間内の請求書をまとめて取るときは、`mfk billings qualified --page-all` の結果から
 請求ごとに上の2行を繰り返す。
+
+### ファイルのアップロード用署名URL
+
+`mfk billings upload-signed-url <billing_id>` は請求ごとに発行する。`content_type` が必須で、
+`--content-type` の既定は `application/pdf`。指定できるのは
+`application/pdf` / `application/json` / `text/csv` / `text/plain` の4つだけ。
+
+```bash
+mfk billings upload-signed-url <billing_id> --content-type text/csv
+```
+
+**このエンドポイントは契約に含まれる販売者だけが使える。** 含まれていない場合、
+リクエストが正しくても `forbidden_seller`（HTTP 403）が返る。403 が出たら
+リクエストの組み立てを疑わず、マネーフォワードケッサイに利用可否を確認すること。

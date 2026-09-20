@@ -17,6 +17,9 @@ func init() {
 
 	billingsQualifiedCmd.Flags().String("customer-id", "", "Filter by customer ID")
 	billingsQualifiedCmd.Flags().String("destination-id", "", "Filter by destination ID")
+
+	billingsUploadSignedURLCmd.Flags().String("content-type", "application/pdf",
+		"Content type of the file to upload: application/pdf, application/json, text/csv or text/plain")
 }
 
 var billingsCmd = &cobra.Command{
@@ -93,15 +96,36 @@ var billingsReissueCmd = &cobra.Command{
 	},
 }
 
+// billingUploadSignedURLPath はファイルアップロード用署名URLを発行するパス。
+// 請求（billing）ごとに発行するので請求IDが要る。
+// 以前は /billings/upload_signed_url に投げていたが、そのルートは存在せず 405 になる。
+func billingUploadSignedURLPath(billingID string) string {
+	return fmt.Sprintf("/billings/%s/upload_signed_url", billingID)
+}
+
 var billingsUploadSignedURLCmd = &cobra.Command{
-	Use:   "upload-signed-url",
-	Short: "Get upload signed URL",
+	Use:   "upload-signed-url <billing_id>",
+	Short: "Get a signed URL to upload a file for one billing",
+	Long: `Get a short-lived signed URL for uploading a file attached to one billing.
+
+--content-type is required by the API and must be one of application/pdf,
+application/json, text/csv or text/plain (default: application/pdf).
+
+This endpoint is only available to sellers whose contract includes it; other
+accounts get "forbidden_seller" (HTTP 403) even though the request is correct.
+Ask Money Forward Kessai to enable it before using this command.`,
+	Example: `  mfk billings upload-signed-url <billing_id>
+  mfk billings upload-signed-url <billing_id> --content-type text/csv`,
+	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		body, err := buildBody(nil)
+		overrides := map[string]any{}
+		contentType, _ := cmd.Flags().GetString("content-type")
+		setIfNotEmpty(overrides, "content_type", contentType)
+		body, err := buildBody(overrides)
 		if err != nil {
 			return err
 		}
-		return doPost("/billings/upload_signed_url", body)
+		return doPost(billingUploadSignedURLPath(args[0]), body)
 	},
 }
 

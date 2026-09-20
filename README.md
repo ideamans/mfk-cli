@@ -137,6 +137,13 @@ mfk billings list --page-all
 curl -sSo invoice.pdf "$(mfk billings download-signed-url <billing_id> <invoice_id> | jq -r '.items[0].signed_url')"
 ```
 
+### ファイルのアップロード用署名URL
+
+`mfk billings upload-signed-url <billing_id>` は請求ごとに発行します。
+`--content-type` は `application/pdf`（既定）/ `application/json` / `text/csv` / `text/plain`。
+
+契約に含まれない販売者では `forbidden_seller`（HTTP 403）が返ります。
+
 ### AIエージェントから使う
 
 `mfk llm` で、全コマンドと請求書（qualified / list）の使い分けを含む詳細リファレンスを Markdown で出力します。コマンドカタログは cobra の定義から生成されるため実装と乖離せず、バイナリに埋め込まれているのでオフラインでも動作します。

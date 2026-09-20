@@ -126,7 +126,31 @@ mfk billings reissue <billing_id>
 
 ### `mfk billings upload-signed-url`
 
-Get upload signed URL
+Get a signed URL to upload a file for one billing
+
+Get a short-lived signed URL for uploading a file attached to one billing.
+
+--content-type is required by the API and must be one of application/pdf,
+application/json, text/csv or text/plain (default: application/pdf).
+
+This endpoint is only available to sellers whose contract includes it; other
+accounts get "forbidden_seller" (HTTP 403) even though the request is correct.
+Ask Money Forward Kessai to enable it before using this command.
+
+```
+mfk billings upload-signed-url <billing_id>
+```
+
+Example:
+
+```
+mfk billings upload-signed-url <billing_id>
+  mfk billings upload-signed-url <billing_id> --content-type text/csv
+```
+
+| flag | type | default | description |
+| --- | --- | --- | --- |
+| `--content-type` | string | `application/pdf` | Content type of the file to upload: application/pdf, application/json, text/csv or text/plain |
 
 ## `mfk credit-facilities`
 
