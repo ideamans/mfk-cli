@@ -77,6 +77,16 @@ mfk <resource> <method> --json '{...}' --dry-run
 sent, to which customer, in which environment, and get their agreement. Then run
 it for real.
 
+### Credit line increase (増枠申請)
+
+There is no separate endpoint: a higher credit line is requested with
+`mfk customer-examinations create`, the same as a new examination.
+`--from-destination <destination_id>` fills customer_id, address and contact
+from an existing billing destination, so usually only `--amount` (the whole
+requested line, not the difference; it cannot be below the line in effect)
+and `--end-date` (last day of one of the next three months) remain. Dry-run
+it, show the user the body, and get their agreement before sending.
+
 ## 6. Report
 
 Give back the identifiers (billing id, customer id) and the amounts and statuses
@@ -91,4 +101,6 @@ and over what period.
 | authentication errors | `MFK_API_KEY` unset or wrong environment | check the variable and whether `--sandbox` is intended |
 | only pre-2023 invoices come back | used `billings list` | use `mfk billings qualified` |
 | totals look too small | default 20-record page | add `--page-all` |
+| examination rejected with 400 on end_date | not a month end within the next three months | use the last day of this or one of the next months |
+| examination rejected with 409 | an examination is already in progress | wait for it (up to two business days) |
 | unexpected write against production | `--sandbox` omitted | verify the environment before every write; use `--dry-run` first |

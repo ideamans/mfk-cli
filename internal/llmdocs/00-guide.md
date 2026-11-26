@@ -45,6 +45,20 @@ mfk はマネーフォワードケッサイ API v2 を操作する CLI です。
 - 「今年の請求書を全部取得」→ `mfk billings qualified --page-all`（list ではなく qualified）
 - 「特定顧客の現行請求」→ `mfk billings qualified --customer-id <ID> --page-all`
 - 「2023年より前の古い請求」→ `mfk billings list --page-all`
+- 「与信枠を増やしたい（増枠申請）」→ 新規の審査と同じ `mfk customer-examinations create`。
+  `--from-destination <請求先ID>` で住所・電話・メール・customer_id を請求先から埋められるので、
+  あとは `--amount`（希望与信額）と `--end-date` だけ。先に `--dry-run` で送信内容を確認する
+
+## 与信枠審査（増枠申請）の注意
+
+- `--amount` は希望与信額そのもの（増やす差額ではない）。**適用中の与信枠未満は指定できない**。
+  審査の結果、希望より少なく付与されることがある
+- `--end-date` は希望取引登録期間の終了日。**直近3か月の月末のみ**（例: `2026-12-31`）
+- 自動与信を使っている場合、増枠した金額は以後の自動付与に引き継がれ、対象顧客のアラートも解消される
+- 審査中の申請があると 409 で弾かれる。審査は最長で申請後2営業日
+- `--corporate-number`（法人番号）は `--business-type corporate` のときだけ付ける
+- 優先順位は「明示フラグ > `--json` > `--from-destination`」。`--from-destination` の請求先取得は
+  読み取りなので `--dry-run` でも実際に送られる（POST は送られない）
 
 ## 課金・与信に関わる操作について
 

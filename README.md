@@ -91,6 +91,10 @@ mfk customers create --json "$(cat template.json)" --name "別の会社名"
 # 取引先名変更
 mfk customer-name-updates create --customer-id "cust_abc" --name "新しい名前"
 
+# 与信枠の増枠申請（請求先から住所・連絡先・customer_id を埋める。明示フラグが優先）
+mfk customer-examinations create --from-destination "dest_abc" \
+  --amount 3000000 --end-date 2026-12-31 --dry-run
+
 # オーソリ作成
 mfk authorizations create --customer-id "cust_abc" --amount 500000 --destination-id "dest_abc"
 
@@ -103,6 +107,17 @@ mfk customers create --dry-run --name "テスト" --number "TEST-001"
 # サンドボックス環境を使用
 mfk customers list --sandbox
 ```
+
+### 与信枠審査・増枠申請
+
+`mfk customer-examinations create` は新規の与信枠審査にも増枠申請にも使います（API は同じ `POST /customer_examinations`）。
+
+- 必須: `--customer-id` `--amount` `--end-date` `--address1` `--email` `--tel` `--zip-code`
+- 任意: `--address2` `--business-type`（corporate / individual） `--corporate-number`（法人のときだけ） `--representative-name` `--business-description` `--website` `--remark`
+- `--amount` は希望与信額。適用中の与信枠未満は指定できません
+- `--end-date` は直近3か月の月末のみ指定できます
+- 自動与信を使っている場合、増枠した金額は以後も引き継がれ、アラートも解消されます
+- `--from-destination <請求先ID>` で請求先の customer_id・address1・address2・zip_code・tel・email を埋めます（優先順位は 明示フラグ > `--json` > 請求先）。請求先の取得は `--dry-run` でも行われます
 
 ### 請求書の取得（インボイス制度対応）
 
