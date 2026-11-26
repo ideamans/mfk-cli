@@ -179,19 +179,57 @@ Manage customer examinations
 
 ### `mfk customer-examinations create`
 
-Create a customer examination
+Request a credit examination (also used to request a higher credit line)
+
+Request a credit examination (与信枠審査) for a customer: POST /customer_examinations.
+
+This is also how you request a higher credit line (増枠申請). The examination
+finishes within two business days at most.
+
+Required: customer_id, amount, end_date, address1, email, tel, zip_code.
+
+  --amount     The requested credit line in JPY. While a credit line is in
+               effect, an amount below it is rejected. The examination may
+               grant less than requested.
+  --end-date   Transactions can be registered against the line until this
+               date. Only the last day of one of the next three months is
+               accepted (e.g. 2026-12-31).
+
+With automatic credit examination (自動与信), the raised amount carries over
+to later automatic credit lines, and the customer's alert is cleared.
+
+While an examination for the customer is still in progress, a new one is
+rejected with HTTP 409.
+
+--from-destination <destination_id> fetches an existing billing destination
+(a read-only GET, sent even with --dry-run) and fills customer_id, address1,
+address2, zip_code, tel and email from it. Explicit flags win over --json,
+and --json wins over the destination. A credit line increase then needs
+little more than:
+
+  mfk customer-examinations create --from-destination <destination_id> \
+    --amount 3000000 --end-date 2026-12-31 --dry-run
+
+Always check the request with --dry-run first: this sends a real request
+to Money Forward Kessai.
 
 | flag | type | default | description |
 | --- | --- | --- | --- |
-| `--address1` | string | — | Address |
-| `--amount` | int | `0` | Amount |
-| `--business-type` | string | — | Business type |
-| `--customer-id` | string | — | Customer ID |
-| `--email` | string | — | Email |
-| `--end-date` | string | — | End date (YYYY-MM-DD) |
+| `--address1` | string | — | Address line 1 (required) |
+| `--address2` | string | — | Address line 2 (building, floor) |
+| `--amount` | int | `0` | Requested credit amount in JPY (required). Must not be below the credit line currently in effect |
+| `--business-description` | string | — | Business description: the customer's main services or products |
+| `--business-type` | string | — | Business type: corporate or individual. Leave empty if unknown |
+| `--corporate-number` | string | — | Corporate number (法人番号). Only when --business-type corporate |
+| `--customer-id` | string | — | Customer ID (required; filled from --from-destination if omitted) |
+| `--email` | string | — | Email (required) |
+| `--end-date` | string | — | Last day transactions may be registered against this credit line (required, YYYY-MM-DD). Only the last day of one of the next three months is accepted |
+| `--from-destination` | string | — | Fill customer_id, address1, address2, zip_code, tel and email from this billing destination (GET /destinations/{id}). Explicit flags and --json win |
+| `--remark` | string | — | Other information for the examination. In sandbox, also selects the examination result |
 | `--representative-name` | string | — | Representative name |
-| `--tel` | string | — | Phone |
-| `--zip-code` | string | — | Zip code |
+| `--tel` | string | — | Phone (required) |
+| `--website` | string | — | Customer's website URL |
+| `--zip-code` | string | — | Zip code (required) |
 
 ### `mfk customer-examinations get`
 
